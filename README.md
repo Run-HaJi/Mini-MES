@@ -12,6 +12,23 @@
 
 作为从零构建的系统，我们在技术选型上遵循 **"实用主义"** 与 **"适度超前"** 的原则：
 
+## 📂 项目结构说明
+
+```text
+Mini-MES/
+├── docs/                   # 📝 架构文档与开发复盘日记
+├── src/
+│   ├── backend/            # 🧠 后端核心 (FastAPI)
+│   │   ├── app/core/       # 数据库连接与配置
+│   │   ├── app/models/     # ORM 模型定义
+│   │   ├── app/schemas/    # Pydantic 数据校验
+│   │   └── app/api/        # 业务路由接口
+│   └── frontend/           # 👁️ 前端视图 (Vue3)
+├── docker-compose.yml      # 🐳 容器编排文件
+└── README.md               # 📄 本文件
+
+```
+
 ### 1. 🛡️ "JSON-Hybrid" 混合存储策略 (Anti-Fragile Data Model)
 
 * **痛点**: 甲方需求极不稳定，今天测“重量”，明天就要测“温度”和“扭矩”。传统关系型数据库（RDBMS）频繁变更 Schema 是灾难。
@@ -100,22 +117,6 @@ docker-compose up --build -d
 
 
 
-## 📂 项目结构说明
-
-```text
-Mini-MES/
-├── docs/                   # 📝 架构文档与开发复盘日记
-├── src/
-│   ├── backend/            # 🧠 后端核心 (FastAPI)
-│   │   ├── app/core/       # 数据库连接与配置
-│   │   ├── app/models/     # ORM 模型定义
-│   │   ├── app/schemas/    # Pydantic 数据校验
-│   │   └── app/api/        # 业务路由接口
-│   └── frontend/           # 👁️ 前端视图 (Vue3)
-├── docker-compose.yml      # 🐳 容器编排文件
-└── README.md               # 📄 本文件
-
-```
 
 ## 📅 路线图 (Roadmap)
 
