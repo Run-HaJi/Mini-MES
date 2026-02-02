@@ -1,0 +1,64 @@
+# ==========================
+# Python / Backend
+# ==========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 虚拟环境 (绝对不能传)
+.venv/
+venv/
+ENV/
+env/
+
+# 环境变量与密钥 (安全第一)
+.env
+.env.local
+
+# ==========================
+# Node.js / Frontend
+# ==========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+dist/
+dist-ssr/
+*.local
+
+# ==========================
+# Docker & Database
+# ==========================
+# 如果你之前把数据库挂载在本地文件夹了，这里要忽略
+mysql_data/
+mysql_db/
+
+# ==========================
+# IDE & System
+# ==========================
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
