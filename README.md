@@ -18,6 +18,7 @@
 Mini-MES/
 ├── docs/                   # 📝 架构文档与开发复盘日记
 ├── src/
+│   ├── client/             # 🆕 [v0.2] 边缘端采集脚本与打包工具
 │   ├── backend/            # 🧠 后端核心 (FastAPI)
 │   │   ├── app/core/       # 数据库连接与配置
 │   │   ├── app/models/     # ORM 模型定义
@@ -116,14 +117,24 @@ docker-compose up --build -d
 * **前端实时看板**: `http://localhost:5173`
 
 
+4. **启动边缘采集 (Edge Client)**
+模拟一台工业设备向后端发送数据：
+
+# 方式 A: 直接运行 Python 脚本
+python src/client/mock_device.py
+
+# 方式 B: 运行打包后的程序 (需自行打包)
+./dist/MiniMES_Edge_Client.exe
+
+
 
 
 ## 📅 路线图 (Roadmap)
 
-* [x] **v0.1 MVP**: 基础架构搭建，Docker 化，核心数据采集与展示跑通。
-* [ ] **v0.2 Edge**: 发布 Python 采集端 SDK/Exe，支持模拟数据生成。
-* [ ] **v0.3 Business**: 增加批次管理 (Batch No.)、设备状态监控。
-* [ ] **v1.0 Release**: 引入 Redis 缓存层，支持 WebSocket 实时推送。
+- [x] **v0.1 MVP**: 基础架构搭建，Docker 化，核心数据采集与展示跑通。
+- [x] **v0.2 Edge**: 发布 Python 采集端 SDK，实现 PyInstaller 二进制打包交付。
+- [ ] **v0.3 Business**: 增加批次管理 (Batch No.)、设备状态监控。
+- [ ] **v1.0 Release**: 引入 Redis 缓存层，支持 WebSocket 实时推送。
 
 ---
 
