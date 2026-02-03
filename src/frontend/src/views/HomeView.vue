@@ -8,27 +8,35 @@ const tableData = ref([]) // 存放从后端拿来的列表
 const loading = ref(false) // 加载转圈圈的状态
 
 // --- 2. 核心功能：去后端拉数据 ---
-const fetchData = async () => {
-  loading.value = true
+// 给函数加个参数 manual，默认是 false (代表是自动刷新，不弹窗)
+const fetchData = async (manual = false) => {
+  // 如果是手动刷新，才显示转圈圈；自动刷新时表格别乱闪，体验更好
+  if (manual) loading.value = true 
+  
   try {
-    // 请求我们刚才写的 GET 接口
     const res = await axios.get('http://localhost:8000/api/v1/data/list')
     tableData.value = res.data
-    ElMessage.success('数据同步成功')
+    
+    // 关键点：只有手动触发时，才弹窗
+    if (manual) {
+      ElMessage.success('数据同步成功')
+    }
   } catch (error) {
     console.error(error)
-    ElMessage.error('连接服务器失败，请检查 Docker 是否活着')
+    // 报错还是要弹的，不然这时候不知道断网了
+    ElMessage.error('连接服务器失败')
   } finally {
     loading.value = false
   }
 }
 
-// --- 3. 生命周期：页面一加载，就自动拉一次数据 ---
 onMounted(() => {
-  fetchData()
+  fetchData() // 第一次加载，静默
   
-  // 可选：搞个定时器，每 5 秒自动刷新一次 (工业看板必备)
-  setInterval(fetchData, 5000)
+  // 定时器里也静默刷新，只更新数据，不弹窗
+  setInterval(() => {
+    fetchData(false)
+  }, 2000) // 建议比 3000 稍微快一点点(比如2000)，保证不漏数据
 })
 </script>
 
@@ -42,7 +50,7 @@ onMounted(() => {
     </div>
 
     <div class="toolbar">
-      <el-button type="primary" @click="fetchData" :loading="loading">
+      <el-button type="primary" @click="fetchData(true)" :loading="loading">
         手动刷新
       </el-button>
       <el-button type="warning" plain>导出报表</el-button>
