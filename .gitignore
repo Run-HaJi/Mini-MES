@@ -62,3 +62,10 @@ mysql_db/
 *.swo
 .DS_Store
 Thumbs.db
+
+# ==========================
+# PyInstaller (打包产物)
+# ==========================
+*.spec
+dist/
+build/
