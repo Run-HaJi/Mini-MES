@@ -5,3 +5,5 @@ pymysql==1.1.0
 python-multipart==0.0.6
 cryptography==42.0.2
 asyncmy==0.2.9
+pandas
+openpyxl

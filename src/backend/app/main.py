@@ -31,5 +31,3 @@ app.include_router(production.router, prefix="/api/v1/data", tags=["Data"])
 def read_root():
     return {"status": "online", "msg": "Mini-MES Backend is running!"}
 
-# 注意：删掉或注释掉之前那个 @app.post("/api/v1/data/upload") 的假接口
-# 否则会冲突！

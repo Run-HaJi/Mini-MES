@@ -38,6 +38,15 @@ onMounted(() => {
     fetchData(false)
   }, 2000) // 建议比 3000 稍微快一点点(比如2000)，保证不漏数据
 })
+
+// 🛠️ 新增：处理导出按钮点击
+const handleExport = () => {
+  // 简单粗暴方案：直接让浏览器访问这个下载链接
+  // 这种方式最稳定，浏览器会自动处理下载弹窗
+  window.location.href = 'http://localhost:8000/api/v1/data/export'
+  
+  ElMessage.success('正在生成报表，请留意下载弹窗...')
+}
 </script>
 
 <template>
@@ -53,7 +62,9 @@ onMounted(() => {
       <el-button type="primary" @click="fetchData(true)" :loading="loading">
         手动刷新
       </el-button>
-      <el-button type="warning" plain>导出报表</el-button>
+      <el-button type="warning" plain @click="handleExport">
+        导出报表
+      </el-button>
     </div>
 
     <el-card class="data-card" shadow="always">

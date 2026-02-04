@@ -30,30 +30,32 @@ Mini-MES/
 
 ```
 
-### 1. 🛡️ "JSON-Hybrid" 混合存储策略 (Anti-Fragile Data Model)
+### 1. ⚡ 全异步高并发链路 (Async I/O)
+
+* **选型**: Python **FastAPI** + **SQLAlchemy (Async)** + **AsyncMy**。
+* **思考**: 工业数据采集具有“高频、短报文”的特征。传统的同步阻塞 IO（Django/Flask）在多设备并发上传时容易造成线程阻塞。全异步链路确保了在低配服务器上也能维持极高的吞吐量 (Throughput)。
+
+
+### 2. 🛡️ "JSON-Hybrid" 混合存储策略 (Anti-Fragile Data Model)
 
 * **痛点**: 甲方需求极不稳定，今天测“重量”，明天就要测“温度”和“扭矩”。传统关系型数据库（RDBMS）频繁变更 Schema 是灾难。
 * **方案**: 采用 MySQL 8.0 的 JSON 特性。
 * **Core Fields**: `line_id`, `device_id`, `timestamp` 等核心索引字段保持强类型，确保查询性能。
 * **Dynamic Payload**: 业务数据（如 SKU、检测值、环境参数）封装为 JSON 对象存储。
-
-
 * **价值**: 实现了 **Schema-less** 的灵活性，无需停机即可适应新设备的接入，具备极强的抗需求变更能力。
 
-### 2. ⚡ 全异步高并发链路 (Async I/O)
-
-* **选型**: Python **FastAPI** + **SQLAlchemy (Async)** + **AsyncMy**。
-* **思考**: 工业数据采集具有“高频、短报文”的特征。传统的同步阻塞 IO（Django/Flask）在多设备并发上传时容易造成线程阻塞。全异步链路确保了在低配服务器上也能维持极高的吞吐量 (Throughput)。
 
 ### 3. 🏭 工业级可视化 (Industrial UX)
 
 * **UI 哲学**: 摒弃花哨动效。采用 **Element Plus** 定制主题，坚持 **"High Contrast / Dark Mode"**（高对比度/深色模式）。
 * **场景**: 适应车间强光/弱光环境，降低操作员视觉疲劳，关键指标（OK/NG）一眼可辨。
 
+
 ### 4. 🐳 容器化基础设施 (Infrastructure as Code)
 
 * **部署**: **Docker Compose** 编排。
 * **价值**: 彻底解决 "It works on my machine" 问题。实现 Server 端的一键交付，数据库与后端服务版本严格锁定，降低现场实施成本。
+
 
 ## 🛠️ 技术栈矩阵 (Tech Stack)
 
@@ -62,6 +64,7 @@ Mini-MES/
 | **Backend** | Python 3.10+, FastAPI | 现代、高性能、类型安全 (Type Hints) |
 | **Database** | MySQL 8.0 | 成熟稳定，且具备优秀的 JSON 查询能力 |
 | **ORM** | SQLAlchemy (Async) | Python 界 ORM 事实标准，支持异步 |
+| **Data Processing** | Pandas, OpenPyXL | 🆕 [v0.3] 强大的数据清洗与 Excel 报表生成能力 |
 | **Frontend** | Vue 3, Vite, Pinia | 响应式性能极佳，开发体验极快 |
 | **UI Component** | Element Plus | 专业的企业级/后台组件库 |
 | **DevOps** | Docker, Docker Compose | 标准化交付与环境隔离 |
@@ -127,14 +130,20 @@ python src/client/mock_device.py
 ./dist/MiniMES_Edge_Client.exe
 
 
+5. **导出业务报表 (Business Reporting)**
+系统运行一段时间后，可在前端看板点击“导出报表”，或直接访问 API 获取 Excel 文件：
+* **导出接口**: `http://localhost:8000/api/v1/data/export`
+* **价值**: 将非结构化的 JSON 遥测数据清洗为标准表格，辅助生产决策。
+
 
 
 ## 📅 路线图 (Roadmap)
 
 - [x] **v0.1 MVP**: 基础架构搭建，Docker 化，核心数据采集与展示跑通。
 - [x] **v0.2 Edge**: 发布 Python 采集端 SDK，实现 PyInstaller 二进制打包交付。
-- [ ] **v0.3 Business**: 增加批次管理 (Batch No.)、设备状态监控。
-- [ ] **v1.0 Release**: 引入 Redis 缓存层，支持 WebSocket 实时推送。
+- [x] **v0.3 Business**: **[NEW]** 实现 Pandas 数据清洗与 Excel 报表导出，具备初步商业交付价值。
+- [ ] **v0.4 Security**: **[Next]** 端到端 AES 加密/解密，保障工业现场数据传输安全。
+- [ ] **v1.0 Release**: 引入 Redis 缓存层，支持 WebSocket 实时推送，发布正式版。
 
 ---
 
