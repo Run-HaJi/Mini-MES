@@ -64,6 +64,7 @@ Mini-MES/
 | **Backend** | Python 3.10+, FastAPI | 现代、高性能、类型安全 (Type Hints) |
 | **Database** | MySQL 8.0 | 成熟稳定，且具备优秀的 JSON 查询能力 |
 | **ORM** | SQLAlchemy (Async) | Python 界 ORM 事实标准，支持异步 |
+| **Security** | PyCryptodome (AES-256) | 🆕 [v0.4] 银行级加密标准，保障数据传输隐私 |
 | **Data Processing** | Pandas, OpenPyXL | 🆕 [v0.3] 强大的数据清洗与 Excel 报表生成能力 |
 | **Frontend** | Vue 3, Vite, Pinia | 响应式性能极佳，开发体验极快 |
 | **UI Component** | Element Plus | 专业的企业级/后台组件库 |
@@ -76,7 +77,7 @@ Mini-MES/
 graph TD
     subgraph "Edge / Field Layer (现场端)"
         A[PLC / Sensors] -->|Signal| B(Python采集脚本 .exe)
-        B -->|JSON/HTTP| C[Nginx / Gateway]
+        B -->|AES Encrypted / HTTP| C[Nginx / Gateway]
     end
 
     subgraph "Server Layer (服务器/Docker)"
@@ -121,12 +122,13 @@ docker-compose up --build -d
 
 
 4. **启动边缘采集 (Edge Client)**
-模拟一台工业设备向后端发送数据：
+# 前置：安装加密依赖 (仅首次需要)
+pip install pycryptodome
 
 # 方式 A: 直接运行 Python 脚本
 python src/client/mock_device.py
 
-# 方式 B: 运行打包后的程序 (需自行打包)
+# 方式 B: 运行打包后的程序 (无需安装依赖)
 ./dist/MiniMES_Edge_Client.exe
 
 
@@ -142,7 +144,7 @@ python src/client/mock_device.py
 - [x] **v0.1 MVP**: 基础架构搭建，Docker 化，核心数据采集与展示跑通。
 - [x] **v0.2 Edge**: 发布 Python 采集端 SDK，实现 PyInstaller 二进制打包交付。
 - [x] **v0.3 Business**: **[NEW]** 实现 Pandas 数据清洗与 Excel 报表导出，具备初步商业交付价值。
-- [ ] **v0.4 Security**: **[Next]** 端到端 AES 加密/解密，保障工业现场数据传输安全。
+- [x] **v0.4 Security**: **[Next]** 端到端 AES 加密/解密，保障工业现场数据传输安全。
 - [ ] **v1.0 Release**: 引入 Redis 缓存层，支持 WebSocket 实时推送，发布正式版。
 
 ---
