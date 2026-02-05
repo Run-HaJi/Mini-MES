@@ -2,60 +2,107 @@ import time
 import random
 import requests
 import json
+import sys
 from datetime import datetime
 
-# --- 配置区 ---
+# 🔒 引入加密库
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
+from Crypto.Util.Padding import unpad
+import base64
+
+# ================= 配置区 =================
+# 目标服务器地址
 SERVER_URL = "http://localhost:8000/api/v1/data/upload"
-DEVICE_ID = "PRESS-001"  # 模拟一台冲压机
+
+# 🔑 最高机密 (必须与后端完全一致)
+# AES-256 需要 32 字节密钥
+SECRET_KEY = b"MiniMES_2026_Ver0.4_Secure_Key!!" 
+# 固定 IV (实际生产应随机生成，这里为了简化先固定)
+IV = b"MiniMES_IV_2026!"
+
+# 模拟设备信息
+DEVICE_ID = "PRESS-001"
 LINE_ID = "LINE-A"
 
+def encrypt_payload(data_dict):
+    """
+    加密函数：把字典 -> JSON字符串 -> 加密 -> Base64字符串
+    """
+    try:
+        # 1. 字典转 JSON 字符串
+        json_str = json.dumps(data_dict)
+        
+        # 2. 创建加密器 (CBC模式)
+        cipher = AES.new(SECRET_KEY, AES.MODE_CBC, IV)
+        
+        # 3. 填充 (Padding) 并加密
+        # AES 加密的数据长度必须是 16 的倍数，所以要 pad
+        ciphertext = cipher.encrypt(pad(json_str.encode('utf-8'), AES.block_size))
+        
+        # 4. 转 Base64 (方便网络传输)
+        return base64.b64encode(ciphertext).decode('utf-8')
+    except Exception as e:
+        print(f"❌ 加密失败: {e}")
+        return None
+
 def generate_mock_data():
-    """生成模拟的工业数据"""
-    # 模拟偶尔出现的不良品 (重量偏差)
-    base_weight = 500.0
-    variation = random.uniform(-2.0, 2.0)
-    
-    # 构造我们要上传的 JSON
-    data = {
-        "line_id": LINE_ID,
-        "device_id": DEVICE_ID,
-        "operator_id": "OP-9527",
-        "source_type": "SIMULATOR",
-        "timestamp": int(time.time()), # 边缘端的时间戳
-        "payload": {
-            "sku": "Test-Metal-Part",
-            "weight": round(base_weight + variation, 2),
-            "temperature": random.randint(45, 80), # 模拟设备温度
-            "status": "OK" if abs(variation) < 1.5 else "NG" # 简单的边缘判定逻辑
-        }
+    """生成模拟生产数据"""
+    return {
+        "sku": "Test-Metal-Part",
+        "weight": round(random.uniform(498.0, 502.0), 2),
+        "temperature": random.randint(45, 80),
+        "pressure": round(random.uniform(10.0, 12.0), 1),
+        "vibration": round(random.uniform(0.1, 0.5), 3)
     }
-    return data
 
 def run_client():
-    print(f"🚀 设备 [{DEVICE_ID}] 启动，准备向 {SERVER_URL} 发送数据...")
-    
-    while True:
-        try:
-            # 1. 生成数据
-            payload = generate_mock_data()
+    print(f"🚀 边缘采集端启动 (加密模式)...")
+    print(f"📡 目标服务器: {SERVER_URL}")
+    print(f"🔒 使用密钥: {SECRET_KEY.decode()}")
+    print("-" * 50)
+
+    try:
+        while True:
+            # 1. 生成原始数据
+            raw_data = generate_mock_data()
             
-            # 2. 发送请求
-            # timeout=2 很重要，防止网络卡死脚本
-            response = requests.post(SERVER_URL, json=payload, timeout=2)
+            # 2. 🔒 加密 Payload
+            encrypted_payload = encrypt_payload(raw_data)
             
-            # 3. 打印结果
-            if response.status_code == 200:
-                print(f"✅ [上传成功] {payload['payload']['weight']}g | 温度: {payload['payload']['temperature']}°C")
-            else:
-                print(f"⚠️ [服务器拒绝] {response.text}")
-                
-        except requests.exceptions.ConnectionError:
-            print("❌ [连接失败] 服务器好像没开？(尝试重连中...)")
-        except Exception as e:
-            print(f"❌ [未知错误] {e}")
+            if not encrypted_payload:
+                continue
+
+            # 3. 构造请求体
+            # 注意：现在的 payload 字段不再是字典，而是一串乱码字符串
+            post_data = {
+                "line_id": LINE_ID,
+                "device_id": DEVICE_ID,
+                "operator_id": "OP-9527",
+                "source_type": "MOCK_CLIENT_V0.4",
+                "timestamp": datetime.now().isoformat(),
+                "payload": encrypted_payload  # <--- 这里是密文！
+            }
+
+            # 4. 发送
+            print(f"\n[生成] 原始数据: {raw_data}")
+            print(f"[加密] 发送密文: {encrypted_payload[:20]}...... (已隐去后半段)")
             
-        # 4. 休息 3 秒再发下一次
-        time.sleep(3)
+            try:
+                resp = requests.post(SERVER_URL, json=post_data, timeout=2)
+                if resp.status_code == 200:
+                    print(f"✅ 上传成功: ID={resp.json().get('data', {}).get('record_id')}")
+                else:
+                    # 预期内：因为后端还没写解密逻辑，现在肯定会报错 422 或 500
+                    print(f"⚠️ 服务器响应异常 (正常现象，等待后端升级): {resp.status_code} - {resp.text}")
+            except Exception as e:
+                print(f"❌ 网络错误: {e}")
+
+            # 模拟生产节拍 (2秒一次)
+            time.sleep(2)
+
+    except KeyboardInterrupt:
+        print("\n🛑 采集端已停止")
 
 if __name__ == "__main__":
     run_client()
