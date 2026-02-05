@@ -145,7 +145,6 @@ python src/client/mock_device.py
 - [x] **v0.2 Edge**: 发布 Python 采集端 SDK，实现 PyInstaller 二进制打包交付。
 - [x] **v0.3 Business**: **[NEW]** 实现 Pandas 数据清洗与 Excel 报表导出，具备初步商业交付价值。
 - [x] **v0.4 Security**: **[Next]** 端到端 AES 加密/解密，保障工业现场数据传输安全。
-- [ ] **v1.0 Release**: 引入 Redis 缓存层，支持 WebSocket 实时推送，发布正式版。
 
 ---
 
