@@ -1,10 +1,9 @@
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-sqlalchemy==2.0.25
-pymysql==1.1.0
-python-multipart==0.0.6
-cryptography==42.0.2
-asyncmy==0.2.9
+fastapi
+uvicorn
+sqlalchemy
+asyncmy
+python-multipart
+python-jose[cryptography]
 pandas
 openpyxl
 pycryptodome
