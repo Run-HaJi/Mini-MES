@@ -1,16 +1,5 @@
 <template>
   <div class="dashboard-container">
-    <div class="navbar">
-      <div class="logo">
-        🏭 Mini-MES <span class="version">v0.6</span>
-      </div>
-      <div class="user-info">
-        <span class="username">👤 {{ username }}</span>
-        <el-button type="danger" size="small" @click="handleLogout" plain>
-          退出登录
-        </el-button>
-      </div>
-    </div>
 
     <div class="content">
       <div class="header-section">
@@ -171,11 +160,7 @@ const handleReset = () => {
   fetchData()
 }
 
-const handleLogout = () => {
-  localStorage.removeItem('token')
-  localStorage.removeItem('username')
-  router.push('/login')
-}
+
 
 const exportData = () => {
   window.open('http://localhost:8000/api/v1/data/export')

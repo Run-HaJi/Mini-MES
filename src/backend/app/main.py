@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.core.database import engine, Base
-from app.api import production  # <--- 1. 导入新写的路由模块
-from app.api import auth
+from app.api import production, auth, operators 
+from app.models import operator as operator_model
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,6 +28,7 @@ app.add_middleware(
 # 这样 /api/v1/data/upload 就生效了
 app.include_router(production.router, prefix="/api/v1/data", tags=["Data"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
+app.include_router(operators.router, prefix="/api/v1/operators", tags=["Operators"])
 
 @app.get("/")
 def read_root():

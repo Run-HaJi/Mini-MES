@@ -1,7 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
-// 假设你原来的 Dashboard 组件叫 HomeView 或者 DashboardView，这里需要根据你实际的文件名引入
-import HomeView from '../views/HomeView.vue' // 👈 这是你原来的主页组件
-import LoginView from '../views/Login.vue' // 👈 新引入
+import Login from '../views/Login.vue'
+import MainLayout from '../views/MainLayout.vue' // 👈 引入布局
+import DashboardView from '../views/DashboardView.vue'
+import OperatorView from '../views/OperatorView.vue' // 👈 引入新页面
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -9,15 +10,31 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      component: LoginView
+      component: Login
     },
     {
+      // 🟢 父路由：使用布局组件
       path: '/',
-      name: 'home',
-      component: HomeView,
-      meta: { requiresAuth: true } // 👈 标记：这个页面需要登录
-    },
-    // 如果你有其他页面，比如 workers，也加上 meta: { requiresAuth: true }
+      component: MainLayout,
+      meta: { requiresAuth: true },
+      // 🟡 子路由：内容展示区
+      children: [
+        {
+          path: '', // 默认跳到 dashboard
+          redirect: '/dashboard'
+        },
+        {
+          path: 'dashboard',
+          name: 'dashboard',
+          component: DashboardView
+        },
+        {
+          path: 'operators', // 新地址 /operators
+          name: 'operators',
+          component: OperatorView
+        }
+      ]
+    }
   ]
 })
 
