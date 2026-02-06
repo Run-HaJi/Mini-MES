@@ -170,7 +170,7 @@ python src/client/mock_device.py
 * [x] **v0.3 Business**: 实现 Pandas 数据清洗与 Excel 报表导出，具备初步商业交付价值。
 * [x] **v0.4 Security**: 实现端到端 AES-256 加密/解密，保障工业现场数据传输安全。
 * [x] **v0.5 Admin**: **[NEW]** 实现 JWT 登录鉴权、路由守卫与用户会话管理。
-* [ ] **v0.6 Traceability**: **[Next]** 多维度数据查询与追溯 (Search & Filter)。
+* [x] **v0.6 Traceability**: **[Next]** 多维度数据查询与追溯 (Search & Filter)。
 * [ ] **v1.0 Release**: 引入 Redis 缓存层，支持 WebSocket 实时推送，发布正式版。
 
 ---
