@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
 from io import BytesIO
@@ -15,6 +15,7 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 
 from app.core.database import get_db
+# ⚠️ 注意：这里沿用你的 ProductionLog 模型
 from app.models.production_log import ProductionLog
 from app.schemas.production import ProductionLogCreate
 
@@ -54,7 +55,7 @@ class ProductionLogRead(BaseModel):
     class Config:
         from_attributes = True
 
-# --- 接口 1: 上传数据 (已升级 v0.4 安全版) ---
+# --- 接口 1: 上传数据 (保留 AES 解密逻辑) ---
 @router.post("/upload", response_model=dict)
 async def upload_data(data: ProductionLogCreate, db: AsyncSession = Depends(get_db)):
     """
@@ -69,11 +70,11 @@ async def upload_data(data: ProductionLogCreate, db: AsyncSession = Depends(get_
         except Exception as e:
             raise HTTPException(status_code=400, detail="Invalid Encrypted Payload")
 
-        # 2. 注入时间戳 (把外层的时间戳放进 payload 里方便查询)
+        # 2. 注入时间戳
         final_payload = decrypted_payload.copy()
         final_payload["edge_timestamp"] = data.timestamp
 
-        # 3. 创建数据库对象 (存进去的是明文 JSON，方便之后查报表)
+        # 3. 创建数据库对象
         new_log = ProductionLog(
             line_id=data.line_id,
             device_id=data.device_id,
@@ -100,24 +101,46 @@ async def upload_data(data: ProductionLogCreate, db: AsyncSession = Depends(get_
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Server Error: {str(e)}")
 
-# --- 接口 2: 获取列表 (保持不变) ---
+# --- 接口 2: 获取列表 (🔥已升级：支持筛选) ---
 @router.get("/list", response_model=List[ProductionLogRead])
-async def get_logs(skip: int = 0, limit: int = 10, db: AsyncSession = Depends(get_db)):
-    query = select(ProductionLog).order_by(ProductionLog.id.desc()).offset(skip).limit(limit)
-    result = await db.execute(query)
+async def get_logs(
+    skip: int = 0, 
+    limit: int = 20, 
+    # 👇 新增：筛选参数
+    line_id: Optional[str] = Query(None, description="产线ID (如 LINE-A)"),
+    start_time: Optional[float] = Query(None, description="开始时间戳 (秒)"),
+    end_time: Optional[float] = Query(None, description="结束时间戳 (秒)"),
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. 基础查询
+    stmt = select(ProductionLog).order_by(ProductionLog.id.desc())
+
+    # 2. 动态拼接筛选条件
+    if line_id:
+        stmt = stmt.where(ProductionLog.line_id == line_id)
+    
+    # 注意：你的模型里时间字段叫 created_at (DateTime类型)，前端传的是时间戳 (Float)
+    # 所以这里需要转换一下
+    if start_time:
+        dt_start = datetime.fromtimestamp(start_time)
+        stmt = stmt.where(ProductionLog.created_at >= dt_start)
+        
+    if end_time:
+        dt_end = datetime.fromtimestamp(end_time)
+        stmt = stmt.where(ProductionLog.created_at <= dt_end)
+
+    # 3. 分页
+    stmt = stmt.offset(skip).limit(limit)
+
+    # 4. 执行
+    result = await db.execute(stmt)
     logs = result.scalars().all()
     return logs
 
-# --- 接口 3: Excel 导出 (保持不变) ---
+# --- 接口 3: Excel 导出 (保留原逻辑) ---
 @router.get("/export")
 async def export_data(db: AsyncSession = Depends(get_db)):
-    # ... (这一大段保持你之前的 Excel 导出代码即可，不用动) ...
-    # 为了节省篇幅，这里省略，请务必保留原有的 export 代码！
-    # 如果你不想手动复制，我可以把完整的发给你，但只要你不删原来的就行。
-    
-    # 临时占位，请确保你的 export 代码还在！
     try:
-        # 复制你之前的逻辑
         stmt = select(ProductionLog).order_by(ProductionLog.id.desc())
         result = await db.execute(stmt)
         logs = result.scalars().all()

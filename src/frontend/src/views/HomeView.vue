@@ -2,7 +2,7 @@
   <div class="dashboard-container">
     <div class="navbar">
       <div class="logo">
-        🏭 Mini-MES <span class="version">v0.5</span>
+        🏭 Mini-MES <span class="version">v0.6</span>
       </div>
       <div class="user-info">
         <span class="username">👤 {{ username }}</span>
@@ -13,12 +13,48 @@
     </div>
 
     <div class="content">
-      <div class="header-actions">
-        <h2 class="page-title">📊 实时生产看板</h2>
-        <div class="btn-group">
+      <div class="header-section">
+        <div class="title-row">
+          <h2 class="page-title">📊 历史追溯与查询</h2>
           <el-tag type="success" effect="dark" class="status-tag">系统在线</el-tag>
-          <el-button type="primary" @click="fetchData">手动刷新</el-button>
-          <el-button type="warning" @click="exportData">导出报表</el-button>
+        </div>
+
+        <div class="search-toolbar">
+          <el-date-picker
+            v-model="searchForm.dateRange"
+            type="datetimerange"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+            :shortcuts="shortcuts"
+            size="large"
+            style="width: 380px"
+          />
+          
+          <el-select 
+            v-model="searchForm.lineId" 
+            placeholder="选择产线" 
+            clearable 
+            size="large" 
+            style="width: 150px"
+          >
+            <el-option label="LINE-A" value="LINE-A" />
+            <el-option label="LINE-B" value="LINE-B" />
+          </el-select>
+
+          <el-button type="primary" icon="Search" size="large" @click="handleSearch">
+            查询数据
+          </el-button>
+          
+          <el-button icon="Refresh" size="large" @click="handleReset">
+            重置
+          </el-button>
+
+          <div class="spacer"></div>
+          
+          <el-button type="warning" icon="Download" size="large" @click="exportData">
+            导出报表
+          </el-button>
         </div>
       </div>
 
@@ -26,7 +62,7 @@
         <el-table-column prop="id" label="流水号" width="100" />
         <el-table-column prop="line_id" label="产线编号" width="120">
           <template #default="scope">
-            <el-tag>{{ scope.row.line_id }}</el-tag>
+            <el-tag effect="plain">{{ scope.row.line_id }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="device_id" label="采集设备" width="150" />
@@ -42,7 +78,7 @@
         </el-table-column>
         <el-table-column label="入库时间">
           <template #default="scope">
-             {{ formatDate(scope.row.timestamp) }}
+             {{ formatDate(scope.row.created_at || scope.row.timestamp) }}
           </template>
         </el-table-column>
       </el-table>
@@ -52,33 +88,51 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router' // 👈 引入路由
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Search, Refresh, Download } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const tableData = ref([])
 const loading = ref(false)
-const username = ref(localStorage.getItem('username') || 'Admin') // 获取用户名
+const username = ref(localStorage.getItem('username') || 'Admin')
 
-// --- 🚪 退出登录逻辑 ---
-const handleLogout = () => {
-  // 1. 清除本地存储的 Token
-  localStorage.removeItem('token')
-  localStorage.removeItem('username')
-  
-  // 2. 提示
-  ElMessage.info('已安全退出')
-  
-  // 3. 强制跳转回登录页
-  router.push('/login')
-}
+// 🔍 搜索表单状态
+const searchForm = ref({
+  lineId: '',
+  dateRange: []
+})
+
+// 快捷时间选项
+const shortcuts = [
+  { text: '最近1小时', value: () => { const end = new Date(); const start = new Date(); start.setTime(start.getTime() - 3600 * 1000 * 1); return [start, end] } },
+  { text: '最近24小时', value: () => { const end = new Date(); const start = new Date(); start.setTime(start.getTime() - 3600 * 1000 * 24); return [start, end] } },
+]
+
+// --- 核心逻辑 ---
 
 const fetchData = async () => {
   loading.value = true
   try {
     const token = localStorage.getItem('token')
     
-    const response = await fetch('/api/v1/data/list?limit=20', {
+    // 1. 构建基础 URL
+    let url = '/api/v1/data/list?limit=50' // 查历史时稍微多看点，改到50条
+
+    // 2. 动态拼接筛选参数
+    if (searchForm.value.lineId) {
+      url += `&line_id=${searchForm.value.lineId}`
+    }
+
+    if (searchForm.value.dateRange && searchForm.value.dateRange.length === 2) {
+      // 前端 Date 对象转成 后端需要的时间戳 (秒)
+      const start = Math.floor(new Date(searchForm.value.dateRange[0]).getTime() / 1000)
+      const end = Math.floor(new Date(searchForm.value.dateRange[1]).getTime() / 1000)
+      url += `&start_time=${start}&end_time=${end}`
+    }
+    
+    // 3. 发请求
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -88,39 +142,50 @@ const fetchData = async () => {
 
     const res = await response.json()
     
-    // 🔍 调试大法：在浏览器控制台打印看看后端到底回了啥
-    console.log("后端返回的数据:", res) 
-
-    // 🛡️ 兼容性修复：既支持 {code:200, data:[...]} 也支持直接返回数组 [...]
+    // 兼容逻辑
     if (Array.isArray(res)) {
-      // 情况A: 后端直接返回了数组 (Raw List)
       tableData.value = res
-      ElMessage.success('数据已刷新')
+      ElMessage.success(`查询成功，共找到 ${res.length} 条记录`)
     } else if (res.code === 200 && Array.isArray(res.data)) {
-      // 情况B: 后端返回了标准包装 (Wrapped JSON)
       tableData.value = res.data
-      ElMessage.success('数据已刷新')
     } else {
-      // 情况C: 数据格式不对
-      console.error("数据格式异常:", res)
-      ElMessage.warning('暂无数据或格式错误')
+      tableData.value = []
+      ElMessage.warning('未查询到数据')
     }
 
   } catch (error) {
-    ElMessage.error('获取数据失败')
+    ElMessage.error('查询失败，请检查网络')
     console.error(error)
   } finally {
     loading.value = false
   }
 }
 
+const handleSearch = () => {
+  fetchData()
+}
+
+const handleReset = () => {
+  searchForm.value.lineId = ''
+  searchForm.value.dateRange = []
+  fetchData()
+}
+
+const handleLogout = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('username')
+  router.push('/login')
+}
+
 const exportData = () => {
   window.open('http://localhost:8000/api/v1/data/export')
 }
 
-const formatDate = (ts) => {
-  if (!ts) return ''
-  return new Date(ts * 1000).toLocaleString()
+const formatDate = (val) => {
+  if (!val) return ''
+  // 兼容字符串时间(如 '2026-02-05...') 和 时间戳(如 17654...)
+  const date = new Date(typeof val === 'number' ? val * 1000 : val)
+  return date.toLocaleString()
 }
 
 onMounted(() => {
@@ -129,14 +194,12 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 全局容器 */
 .dashboard-container {
   background-color: #1a1a1a;
   min-height: 100vh;
   color: #fff;
 }
 
-/* 🟢 顶部导航栏样式 */
 .navbar {
   height: 60px;
   background-color: #242424;
@@ -145,58 +208,51 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 0 40px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
-.logo {
-  font-size: 20px;
-  font-weight: bold;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+.logo { font-size: 20px; font-weight: bold; }
+.version { font-size: 12px; background: #E6A23C; color: #000; padding: 2px 6px; border-radius: 4px; }
+.user-info { display: flex; align-items: center; gap: 20px; }
+.username { color: #ccc; font-size: 14px; }
 
-.version {
-  font-size: 12px;
-  background: #409EFF;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.username {
-  color: #ccc;
-  font-size: 14px;
-}
-
-/* 🟡 内容区样式 */
 .content {
-  padding: 40px;
+  padding: 30px 40px;
   max-width: 1400px;
   margin: 0 auto;
 }
 
-.header-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
+.header-section {
+  background: #2c2c2c;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
-.page-title {
-  margin: 0;
-  color: #eee;
-}
-
-.btn-group {
+.title-row {
   display: flex;
   align-items: center;
   gap: 15px;
+  margin-bottom: 20px;
 }
+
+.page-title { margin: 0; color: #eee; font-size: 18px; }
+
+/* 搜索栏样式 */
+.search-toolbar {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.spacer { flex: 1; } /* 把导出按钮顶到最右边 */
+
+:deep(.el-input__wrapper) {
+  background-color: #1a1a1a;
+  box-shadow: 0 0 0 1px #444 inset;
+}
+:deep(.el-input__inner) { color: #fff; }
+:deep(.el-range-input) { color: #fff; }
+:deep(.el-date-editor .el-range-separator) { color: #888; }
 </style>
