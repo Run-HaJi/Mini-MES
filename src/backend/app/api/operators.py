@@ -59,3 +59,17 @@ async def delete_operator(operator_id: int, db: AsyncSession = Depends(get_db)):
     await db.delete(db_operator)
     await db.commit()
     return {"msg": "Deleted successfully"}
+
+@router.get("/by_code/{code}", response_model=OperatorRead)
+async def get_operator_by_code(code: str, db: AsyncSession = Depends(get_db)):
+    # 精确查找工号
+    result = await db.execute(select(Operator).where(Operator.code == code))
+    op = result.scalars().first()
+    
+    if not op:
+        raise HTTPException(status_code=404, detail="工号不存在，请联系管理员")
+    
+    if not op.is_active:
+        raise HTTPException(status_code=400, detail="该工号已离职/停用")
+        
+    return op

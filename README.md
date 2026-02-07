@@ -28,10 +28,9 @@
 * **选型**: **JWT (JSON Web Token)** + **Native Hashlib**。
 * **思考**: 在工业内网环境中，复杂的 OAuth2 往往显得臃肿。我们采用无状态的 JWT 机制，彻底摆脱了对底层 C 编译环境的依赖，确保 Docker 镜像极度轻量。
 
-### 4. 🏭 工业级可视化 (Industrial UX)
-
-* **UI 哲学**: 采用 **Element Plus** 定制主题，主打 **"Professional Blue"**（专业蓝）与 **"Card Layout"**（卡片式布局）。
-* **场景**: 顶部通栏导航强化品牌感，侧边栏悬浮胶囊设计提升交互体验，关键指标（OK/NG）在白底卡片上一眼可辨。
+### 3. 🏭 双模工业可视化 (Dual-Mode UX)
+* **管理端 (Admin)**: 采用 **"Professional Blue"** 主题与卡片式布局，适合办公室查阅。
+* **工位端 (HMI)**: **[v0.8 新增]** 采用 **"Industrial Dark"** (暗黑模式) 与大触控控件，支持 **全屏沉浸式** 操作，专为车间触摸屏设计。
 
 ### 5. 🐳 容器化基础设施 (Infrastructure as Code)
 
@@ -53,19 +52,20 @@ Mini-MES/
 │   │   │   ├── api/            #    业务接口层
 │   │   │   │   ├── auth.py     #       [v0.5] JWT 登录鉴权
 │   │   │   │   ├── production.py #     [v0.6] 生产数据追溯
-│   │   │   │   └── operators.py  #     [v0.7] 人员管理 CRUD
+│   │   │   │   ├── operators.py  #     [v0.7] 人员管理 CRUD
+│   │   │   │   └── station.py    #     [v0.8] 工位人工补录
 │   │   │   ├── core/           #    核心配置 (Database/Config)
 │   │   │   ├── models/         #    ORM 模型定义
-│   │   │   └── main.py         #    应用入口 (CORS/Middleware)
+│   │   │   └── main.py         #    应用入口
 │   │   └── requirements.txt
 │   └── frontend/               # 👁️ 前端视图 (Vue3 + Vite)
 │       ├── src/
-│       │   ├── router/         #    路由配置 (Nested Routes)
+│       │   ├── router/         #    路由配置 (区分 Admin/Station)
 │       │   ├── views/          #    页面组件
-│       │   │   ├── MainLayout.vue    # [v0.7] 侧边栏/顶部导航布局
-│       │   │   ├── Login.vue         # [v0.5] 登录页
+│       │   │   ├── MainLayout.vue    # [v0.7] 管理后台布局
 │       │   │   ├── DashboardView.vue # [v0.6] 历史追溯看板
-│       │   │   └── OperatorView.vue  # [v0.7] 人员信息管理
+│       │   │   ├── OperatorView.vue  # [v0.7] 人员信息管理
+│       │   │   └── StationView.vue   # [v0.8] 工位终端 HMI
 │       │   └── ...
 │       └── vite.config.js      #    构建配置 (反向代理)
 ├── docker-compose.yml          # 🐳 容器编排文件
@@ -78,22 +78,25 @@ Mini-MES/
 ## 🛠️ 技术栈矩阵 (Tech Stack)
 
 | 领域 | 核心技术 | 选型理由 |
-| --- | --- | --- |
-| **Backend** | Python 3.10+, FastAPI | 现代、高性能、类型安全 (Type Hints) |
-| **Database** | MySQL 8.0 | 成熟稳定，且具备优秀的 JSON 查询能力 |
-| **Auth** | **JWT, Hashlib** | **[v0.5]** 无状态会话管理，零依赖部署 |
-| **Security** | PyCryptodome (AES-256) | **[v0.4]** 银行级端到端加密 |
+| :--- | :--- | :--- |
+| **Backend** | Python 3.10+, FastAPI, SQLAlchemy | 现代、高性能、全异步链路 (Async I/O) |
+| **Database** | MySQL 8.0 | 成熟稳定，且具备优秀的 JSON 混合存储能力 |
 | **Frontend** | Vue 3, Vite, Pinia | 响应式性能极佳，开发体验极快 |
-| **UI** | Element Plus | **[v0.7]** 企业级后台组件库，专业蓝主题 |
-| **DevOps** | Docker, Docker Compose | 标准化交付与环境隔离 |
+| **UI** | Element Plus | **[v0.7/v0.8]** 双模设计：管理端(蓝) + 工位端(暗黑) |
+| **Edge & IoT** | Python, PyCryptodome, PyInstaller | **[v0.2/v0.4]** 跨平台采集，AES 加密，二进制打包交付 |
+| **Auth** | PyJWT, Hashlib | **[v0.5/v0.8]** 无状态 Token + LocalStorage 会话持久化 |
+| **DevOps** | Docker, Docker Compose | 标准化交付，一键编排生产环境 |
+
 
 ## 📐 系统拓扑 (Topology)
 
 ```mermaid
 graph TD
     subgraph "Edge / Field Layer (现场端)"
-        A[PLC / Sensors] -->|Signal| B(Python采集脚本 .exe)
-        B -->|AES Encrypted / HTTP| C[Nginx / Gateway]
+        A[PLC / Sensors] -->|Signal| B(Python采集脚本)
+        H[Touch Screen / HMI] -->|Manual Entry| G(StationView Vue)
+        B -->|AES Encrypted| C[Nginx / Gateway]
+        G -->|HTTPS / JWT| C
     end
 
     subgraph "Server Layer (服务器/Docker)"
@@ -102,7 +105,7 @@ graph TD
     end
 
     subgraph "Client Layer (管理端)"
-        F[Browser / Dashboard] -->|JWT Auth / REST API| D
+        F[Browser / Dashboard] -->|JWT Auth| D
     end
 
 ```
@@ -123,7 +126,6 @@ cd Mini-MES
 
 ```
 
-
 2. **启动服务 (Docker)**
 ```bash
 # 首次启动会自动构建镜像并初始化数据库
@@ -131,11 +133,10 @@ docker-compose up --build -d
 
 ```
 
-
 3. **系统接入 (System Access)**
 * **后端 API 文档 (Swagger)**: `http://localhost:8000/docs`
-* **前端管理后台**: `http://localhost:5173`
-* **默认管理员账号**: `admin` / `admin123`
+* **前端管理后台**: `http://localhost:5173(账号: admin / admin123)`
+* **工位终端 (HMI)**: `http://localhost:5173/station (需使用有效工号登录)`
 
 
 4. **启动边缘采集 (Edge Client)**
@@ -149,7 +150,6 @@ python src/client/mock_device.py
 ```
 
 
-
 ---
 
 ## 📅 路线图 (Roadmap)
@@ -161,8 +161,9 @@ python src/client/mock_device.py
 * [x] **v0.5 Admin**: 实现 JWT 登录鉴权、路由守卫。
 * [x] **v0.6 Traceability**: 多维度数据查询与追溯 (Search & Filter)。
 * [x] **v0.7 Layout & Operators**: **[NEW]** 现代化侧边栏布局重构，人员管理 CRUD 上线。
-* [ ] **v0.8 Context**: **[Next]** 生产上下文感知 (Context Awareness) 与工位登录。
-* [ ] **v1.0 Release**: 引入 Redis 缓存层，发布正式版。
+* [x] **v0.8 Context**: **[Next]** 生产上下文感知 (Context Awareness) 与工位登录。
+* [ ] v0.9 Real-time: [Next] 引入短轮询机制，实现看板数据自动刷新。
+* [ ] **v1.0 Release**: 代码审计与正式版发布。
 
 ---
 

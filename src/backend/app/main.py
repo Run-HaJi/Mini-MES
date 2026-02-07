@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.core.database import engine, Base
-from app.api import production, auth, operators 
+from app.api import production, auth, operators, station 
 from app.models import operator as operator_model
 
 @asynccontextmanager
@@ -29,6 +29,7 @@ app.add_middleware(
 app.include_router(production.router, prefix="/api/v1/data", tags=["Data"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(operators.router, prefix="/api/v1/operators", tags=["Operators"])
+app.include_router(station.router, prefix="/api/v1/station", tags=["Station HMI"])
 
 @app.get("/")
 def read_root():
