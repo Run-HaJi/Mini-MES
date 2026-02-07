@@ -180,7 +180,3 @@ python src/client/mock_device.py
 协助开发者完成了从**数据库建模**、**后端高并发链路实现**到**前端组件化开发**的全流程落地，极大地缩短了系统的研发周期（Time-to-Market）。
 
 > **Copyright**: © 2026 Mini-MES Open Source Project.
-
-```
-
-```
