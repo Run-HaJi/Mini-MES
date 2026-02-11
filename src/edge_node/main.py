@@ -1,54 +1,85 @@
 import time
 import os
-import requests
-from services.vision import vision_bot
+import cv2
+import sys
+import logging
 
-# 配置
-SERVER_URL = "http://localhost:8000/api/v1/production/upload_batch" # 注意：后端可能需要写个批量接口
-TEST_IMAGE_PATH = os.path.join(os.path.dirname(__file__), "assets/test_batch.jpg") # 这是我们刚才生成的测试条码图像
+# === 关键：先让 Python 能找到同级模块 ===
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(CURRENT_DIR)
 
-def edge_loop():
-    print("🚀 Edge Node v0.9 (Vision Only) Started...")
-    print(f"📂 Watching Target: {TEST_IMAGE_PATH}")
+from services.yolo_service import YoloEngine
+from services.ocr_service import DateReader
+
+def main():
+    print("🚀 Mini-MES Edge Node v0.9 (YOLO Architecture) Starting...")
+
+    # === 关键修复：使用绝对路径锚定模型 ===
+    # 无论你在哪里运行命令，这行代码都能精准定位到 src/edge_node/models/best.onnx
+    model_path = os.path.join(CURRENT_DIR, "models", "yolo_v8_n.onnx")
+    
+    print(f"🔎 正在加载模型: {model_path}")
+
+    # 初始化引擎，传入绝对路径
+    yolo = YoloEngine(model_path=model_path)
+    ocr = DateReader()
+
+    # 准备测试图
+    img_path = os.path.join(CURRENT_DIR, "assets", "target_sample.jpg")
+    
+    if not os.path.exists(img_path):
+        print("⚠️ 没找到测试图，生成一张黑图用于测试流程")
+        dummy = np.zeros((640, 640, 3), dtype=np.uint8)
+        cv2.imwrite(img_path, dummy)
 
     while True:
-        try:
-            # 1. 模拟触发 (比如光电传感器信号)
-            # 在真实场景下，这里会等待 GPIO 信号
-            print("\nWAITING FOR TRIGGER...")
-            time.sleep(2) 
-            
-            # 2. 视觉识别 (调用刚才写的 VisionService)
-            codes = vision_bot.detect_and_decode(TEST_IMAGE_PATH)
+        input("👉 按回车键模拟一次传感器触发 (Trigger)...")
+        start_time = time.time()
 
-            if codes:
-                # 3. 数据打包 (根据 Mentor 的要求，上传识别到的所有码)
-                payload = {
-                    "device_id": "EDGE-IPC-001",
-                    "batch_time": time.time(),
-                    "scanned_items": codes # 把列表传上去
-                }
+        # === A. 拍照/读取 ===
+        # 注意：这里未来要换成 camera.capture()
+        if os.path.exists(img_path):
+            frame = cv2.imread(img_path)
+        else:
+            print("❌ 图片又不见了！")
+            continue
+        
+        # === B. YOLO 检测 (看图) ===
+        detections = yolo.detect(img_path)
+        
+        flavor_result = "Unknown"
+        date_result = "Unknown"
 
-                # 4. 上传 (暂时打印出来，不真发，防止报错)
-                print(f"☁️ [Simulated Upload] Uploading {len(codes)} items to Server...")
-                # try:
-                #     resp = requests.post(SERVER_URL, json=payload)
-                #     print(f"   Server Response: {resp.status_code}")
-                # except Exception as e:
-                #     print(f"   Upload Failed: {e}")
+        # === C. 结果分拣 ===
+        for item in detections:
+            cls_id = item['class_id']
+            box = item['box']
+            conf = item['conf']
 
-            else:
-                print("💤 No valid codes found in this cycle.")
+            # 策略 1: 口味 (直接分类)
+            if cls_id == 0:
+                flavor_result = item['class_name'] 
+                print(f"   🍓 检测到口味: {flavor_result} (置信度: {conf:.2f})")
 
-            # 模拟流水线移动时间
-            time.sleep(3)
+            # 策略 2: 日期 (定位 -> 抠图 -> 识别)
+            elif cls_id == 1:
+                print(f"   📅 发现日期区域，坐标: {box}")
+                date_text = ocr.read_date(frame, box)
+                if date_text:
+                    date_result = date_text
+                    print(f"      ✅ 日期读取结果: {date_result}")
 
-        except KeyboardInterrupt:
-            print("\n🛑 Stopping Edge Node.")
-            break
-        except Exception as e:
-            print(f"❌ Critical Error: {e}")
-            time.sleep(1)
+        # === D. 数据上报 (Mock) ===
+        payload = {
+            "product": flavor_result,
+            "batch_date": date_result,
+            "timestamp": time.time()
+        }
+        
+        cost = (time.time() - start_time) * 1000
+        print(f"✨ 流程结束 | 耗时: {cost:.2f}ms | 数据: {payload}")
+        print("-" * 40)
 
 if __name__ == "__main__":
-    edge_loop()
+    import numpy as np 
+    main()
